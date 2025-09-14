@@ -10,3 +10,6 @@ beautifulsoup4
 tiktoken
 langchain[google-genai]
 langchain-google-genai
+langchain-huggingface
+sentence-transformers
+faiss-cpu
