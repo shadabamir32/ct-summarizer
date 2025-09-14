@@ -32,26 +32,30 @@ text_splitter = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=20
 @tool
 def summarize_youtube(url: str) -> str:
     """Use this tool to summarize youtube video from a given URL."""
-    print('Summarizing YouTube video from URL:', url)
-    # video_id = url.split("v=")[-1]
-    # https://www.youtube.com/watch?v=ukzFI9rgwfU
-    loader = YoutubeLoaderDL.from_youtube_url(
-        url,
-        add_video_info=True,
-        # transcript_format=TranscriptFormat.CHUNKS,
-        # chunk_size_seconds=30,
-    )
-    print("YouTube video loaded.")
-    # loader = YoutubeLoader(video_id=video_id, add_video_info=True)
-    docs = loader.load()
-    print(docs)
-    print(f"Loaded {len(docs)} documents from the YouTube video.")
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-mpnet-base-v2"
-    )
-    vectorStore = FAISS.from_documents(docs, embeddings)
+    try:
+        print('Summarizing YouTube video from URL:', url)
+        # video_id = url.split("v=")[-1]
+        # https://www.youtube.com/watch?v=ukzFI9rgwfU
+        loader = YoutubeLoader.from_youtube_url(
+            url,
+            add_video_info=True,
+            transcript_format=TranscriptFormat.CHUNKS,
+            chunk_size_seconds=30,
+        )
+        print("YouTube video loaded.")
+        # loader = YoutubeLoader(video_id=video_id, add_video_info=True)
+        docs = loader.load()
+        print(docs)
+        print(f"Loaded {len(docs)} documents from the YouTube video.")
+        embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-mpnet-base-v2"
+        )
+        vectorStore = FAISS.from_documents(docs, embeddings)
 
-    return create_summary(vectorStore, useStuff=True)
+        return create_summary(vectorStore, useStuff=True)
+    except Exception as e:
+        print("Error in summarize_youtube:", str(e))
+        return "Inform user that the YouTube video could not be processed."
 
 @tool
 def summarize_article(url: str) -> str:
@@ -190,17 +194,17 @@ def create_db(session_id: str = "default"):
 
 
 if __name__ == "__main__":
-    # agent = create_summary_agent()
-    # # https://python.langchain.com/docs/introduction
-    # while True:
-    #     query = input("Enter your query (or 'exit' to quit): ")
-    #     if query.lower() == "exit":
-    #         break
-    #     response = agent.invoke(
-    #         {"input": query}, config={"configurable": {"session_id": "default"}}
-    #     )
-    #     print(response["output"])
-    from pytube import YouTube
+    agent = create_summary_agent()
+    # https://python.langchain.com/docs/introduction
+    while True:
+        query = input("Enter your query (or 'exit' to quit): ")
+        if query.lower() == "exit":
+            break
+        response = agent.invoke(
+            {"input": query}, config={"configurable": {"session_id": "default"}}
+        )
+        print(response["output"])
+    # from pytube import YouTube
 
-    yt = YouTube("https://www.youtube.com/watch?v=zSA7ylHP6AY")
-    print(yt.title)
+    # yt = YouTube("https://www.youtube.com/watch?v=zSA7ylHP6AY")
+    # print(yt.title)
