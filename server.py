@@ -12,8 +12,10 @@ from langchain_core.prompts import (
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.vectorstores import FAISS
 from langchain_community.chat_message_histories import SQLChatMessageHistory
+from langchain_community.document_loaders import YoutubeLoader
+from langchain_community.document_loaders.youtube import TranscriptFormat
+from langchain_yt_dlp.youtube_loader import YoutubeLoaderDL
 
-# from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_huggingface import HuggingFaceEmbeddings
 from bs4 import BeautifulSoup
 from sqlalchemy import create_engine
@@ -27,10 +29,34 @@ engine = create_engine("sqlite:///chat_history.db")
 model = init_chat_model("gemini-2.5-pro", model_provider="google_genai")
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=200)
 
+@tool
+def summarize_youtube(url: str) -> str:
+    """Use this tool to summarize youtube video from a given URL."""
+    print('Summarizing YouTube video from URL:', url)
+    # video_id = url.split("v=")[-1]
+    # https://www.youtube.com/watch?v=ukzFI9rgwfU
+    loader = YoutubeLoaderDL.from_youtube_url(
+        url,
+        add_video_info=True,
+        # transcript_format=TranscriptFormat.CHUNKS,
+        # chunk_size_seconds=30,
+    )
+    print("YouTube video loaded.")
+    # loader = YoutubeLoader(video_id=video_id, add_video_info=True)
+    docs = loader.load()
+    print(docs)
+    print(f"Loaded {len(docs)} documents from the YouTube video.")
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-mpnet-base-v2"
+    )
+    vectorStore = FAISS.from_documents(docs, embeddings)
+
+    return create_summary(vectorStore, useStuff=True)
 
 @tool
 def summarize_article(url: str) -> str:
     """Use this tool to summarize article from a given URL which is not a youtube link or a link to video."""
+    print('Summarizing article from URL:', url)
     headers = {
         "Cache-Control": "no-cache",
         "Content-Type": "application/json",
@@ -146,7 +172,7 @@ def create_summary_agent():
             MessagesPlaceholder(variable_name="agent_scratchpad"),
         ]
     )
-    tools = [summarize_article]
+    tools = [summarize_article, summarize_youtube]
     agent = create_tool_calling_agent(model, tools, prompt)
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=False)
     agent_with_chat_history = RunnableWithMessageHistory(
@@ -164,13 +190,17 @@ def create_db(session_id: str = "default"):
 
 
 if __name__ == "__main__":
-    agent = create_summary_agent()
-    # https://python.langchain.com/docs/introduction
-    while True:
-        query = input("Enter your query (or 'exit' to quit): ")
-        if query.lower() == "exit":
-            break
-        response = agent.invoke(
-            {"input": query}, config={"configurable": {"session_id": "default"}}
-        )
-        print(response["output"])
+    # agent = create_summary_agent()
+    # # https://python.langchain.com/docs/introduction
+    # while True:
+    #     query = input("Enter your query (or 'exit' to quit): ")
+    #     if query.lower() == "exit":
+    #         break
+    #     response = agent.invoke(
+    #         {"input": query}, config={"configurable": {"session_id": "default"}}
+    #     )
+    #     print(response["output"])
+    from pytube import YouTube
+
+    yt = YouTube("https://www.youtube.com/watch?v=zSA7ylHP6AY")
+    print(yt.title)
