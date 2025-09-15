@@ -1,4 +1,6 @@
 from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 from langchain.chains.summarize import load_summarize_chain
 from langchain.chat_models import init_chat_model
@@ -28,6 +30,19 @@ load_dotenv()
 engine = create_engine("sqlite:///chat_history.db")
 model = init_chat_model("gemini-2.5-pro", model_provider="google_genai")
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=200)
+
+app = FastAPI(title="Summarizer", version="1.0.0")
+
+@app.post("/summarize/{session_id}", tags=["Summarize"])
+def summarize(url: str, session_id: str):
+    response = summarize_urls(url, session_id)
+    return JSONResponse(content=response, status_code=200)
+
+@app.delete("/history/{session_id}", tags=["Summarize"])
+def clear_history(session_id: str):
+    history = create_db(session_id)
+    history.clear()
+    return JSONResponse(content={"message": "History cleared"}, status_code=200)
 
 @tool
 def summarize_youtube(url: str) -> str:
@@ -191,6 +206,15 @@ def create_summary_agent():
 
 def create_db(session_id: str = "default"):
     return SQLChatMessageHistory(session_id=session_id, connection=engine)
+
+
+def summarize_urls(url, session_id):
+    agent = create_summary_agent()
+    response = agent.invoke(
+        {"input": url}, config={"configurable": {"session_id": session_id}}
+    )
+
+    return response['output']
 
 
 if __name__ == "__main__":
